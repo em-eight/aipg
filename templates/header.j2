@@ -1,0 +1,10 @@
+
+#pragma once
+
+#include "opcode/ppc.h"
+
+#include "aipg/aipg.hpp"
+
+namespace aipg {
+bool match{{ idiom_name }}(uint32_t* buffer, uint32_t maxInsCount, ppc_cpu_t dialect, Context& parseCtx);
+}

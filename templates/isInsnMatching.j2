@@ -1,0 +1,10 @@
+bool isInsnMatchingL{{ lineNo }}(const struct ppc_opcode* opcode, uint64_t insn, ppc_cpu_t dialect, Context& parseCtx) {
+  bool isMatching = isMnemonicMatching(opcode, insn, dialect);
+
+  Context tmpCtx = parseCtx;
+## for operand in operands
+  isMatching = isMatching && isOperand{{ operand.idx }}Matching{{ lineNo }}(opcode->operands + operand.idx, insn, dialect, tmpCtx);
+## endfor
+  if (isMatching) parseCtx = tmpCtx;
+  return isMatching;
+}
