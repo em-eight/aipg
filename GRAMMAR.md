@@ -24,3 +24,6 @@ Similar to registers, immediates can either be provided as literals, in which ca
 ## Labels
 Labels are currently not supported. For now, the generated parsers only look at the corresponding binary code 
 (usually 0 if there is a reloc and the label value (relative or absolute depending on the instruction) otherwise).
+
+## Special lines
+Use `...` to match any number of any instruction (as few as possible)
