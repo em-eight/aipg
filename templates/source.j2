@@ -1,8 +1,10 @@
 
 #include "opcode/ppc.h"
-#include "ppcdisasm/ppc-dis.h"
+#include "ppcdisasm/ppc-dis.hpp"
 
 #include "aipg/aipg.hpp"
+
+using namespace ppcdisasm;
 
 namespace aipg {
 
@@ -10,13 +12,13 @@ namespace aipg {
 {{ definition }}
 ## endfor
 
-bool match{{ idiom_name }}(uint32_t* buffer, uint32_t maxInsCount, ppc_cpu_t dialect, Context& parseCtx) {
+bool match{{ idiom_name }}(uint32_t* buff, uint32_t maxInsCount, ppc_cpu_t dialect, Context& parseCtx) {
   uint32_t insIdx = 0;
-  struct ppc_opcode* opcode;
+  const struct powerpc_opcode* opcode;
 
 ## for ins in ins_data
   if (insIdx >= maxInsCount) return false;
-  opcode = powerpc_opcodes + {{ ins.opindex }}
+  opcode = powerpc_opcodes + {{ ins.opindex }};
   {{ ins.parseCheck }}
 ## endfor
 

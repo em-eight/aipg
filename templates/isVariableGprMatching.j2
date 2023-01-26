@@ -1,11 +1,11 @@
-bool isOperand{{ operand.idx }}MatchingL{{ lineNo }}(const struct ppc_operand* operand, uint64_t insn, ppc_cpu_t dialect, Context& parseCtx) {
+bool isOperand{{ operand.idx }}MatchingL{{ lineNo }}(const struct powerpc_operand* operand, uint64_t insn, ppc_cpu_t dialect, Context& parseCtx) {
   {% if not operand.optional %}int64_t operand_val = operand_value_powerpc(operand, insn, dialect);
   {% else %}int64_t operand_val = operand_optional_value_powerpc(operand, insn, dialect, {{ operand.num_optional }});{% endif %}
 
-  if (parseCtx.gpr.contains({{ operand.gpr }}))
-    return operand_val == parseCtx.gpr[{{ operand.gpr }}];
+  if (parseCtx.gprs.contains({{ operand.gpr }}))
+    return operand_val == parseCtx.gprs[{{ operand.gpr }}];
   else {
-    parseCtx.gpr[{{ operand.gpr }}] = operand_val;
+    parseCtx.gprs[{{ operand.gpr }}] = operand_val;
     return true;
   }
 }

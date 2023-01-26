@@ -1,5 +1,4 @@
-  while (!isInsnMatchingL{{ lineNo }}(opcode, buff[insIdx], dialect, parseCtx)) {
+  while (insIdx < maxInsCount && !isInsnMatchingL{{ lineNo }}(opcode, buff[insIdx], dialect, parseCtx)) {
     insIdx++;
-    if (insIdx >= maxInsCount) return false;
   }
-  matchInsIdxs.push_back(insIdx);
+  parseCtx.matchInsIdxs.push_back(insIdx);

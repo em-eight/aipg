@@ -73,6 +73,7 @@ const inja::Template includeTemplate = injaEnv.parse_template("/header.j2");
 const inja::Template insCheckSingleTemplate = injaEnv.parse_template("/insCheckSingle.j2");
 const inja::Template insCheckLoopTemplate = injaEnv.parse_template("/insCheckLoop.j2");
 const inja::Template isInsMatchingTemplate = injaEnv.parse_template("/isInsnMatching.j2");
+const inja::Template isMnemonicMatchingTemplate = injaEnv.parse_template("/isMnemonicMatching.j2");
 const inja::Template isVariableGprMatchingTemplate = injaEnv.parse_template("/isVariableGprMatching.j2");
 const inja::Template isDefinedGprMatchingTemplate = injaEnv.parse_template("/isDefinedGprMatching.j2");
 const inja::Template isVariableFprMatchingTemplate = injaEnv.parse_template("/isVariableFprMatching.j2");
@@ -104,6 +105,7 @@ std::tuple<std::string, std::string> generateParser(const std::string& idiom, co
   json include_data;
   include_data["idiom_name"] = idiom_name;
   std::vector<std::string> definitions;
+  definitions.push_back(injaEnv.render(isMnemonicMatchingTemplate, source_data));
   std::vector<std::string> parserChecks;
 
   // flag for ... expression to generate runtime that repeatedly checks for pattern
