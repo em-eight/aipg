@@ -1,4 +1,6 @@
 # Assembly Idiom Parser Generator
+![build badge](https://github.com/em-eight/aipg/actions/workflows/test.yml/badge.svg?branch=main)
+
 Write human readable assembly idioms and generate fast PowerPC parsers
 - The idiom grammar is human-readable and PowerPC assembly-like, see [GRAMMAR.md](https://github.com/em-eight/aipg/blob/main/GRAMMAR.md)
 - The generated parser is (afaik) nearly optimal, only checking whatever is needed and at the binary level, so no disassembly is performed.
@@ -75,7 +77,8 @@ Immediate var 1 value is -30583
 ```
 
 ## Dependencies
-Both the generator and the runtime parser depend on [ppcdisasm-cpp](https://github.com/em-eight/ppcdisasm-cpp)
+Both the generator and the runtime parser depend on [ppcdisasm-cpp](https://github.com/em-eight/ppcdisasm-cpp).
+The generator requires a compiler with c++17 support and the runtime parser c++20 support
 
 ## Building
 - `mkdir build && cd build`
@@ -83,7 +86,11 @@ Both the generator and the runtime parser depend on [ppcdisasm-cpp](https://gith
 - `make`
 
 ## Usage
+### Command line
 `./aipg aipg [--src_out src_out] [--inc_out inc_out] file1.idiom file2.idiom ..`
+
+### In build system
+When using this project's parsers in your own project, usually you will want to perform the parser generation at build time, before your targets that use them are built. You can find an example of doing this with CMake in this project's [CMakeLists.txt](https://github.com/em-eight/aipg/blob/main/CMakeLists.txt)
 
 ## Limitations
 - Currently, rotate-shift instruction idioms can only use the 4 argument forms.
