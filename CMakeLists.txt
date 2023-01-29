@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.14)
 
 project(aipg VERSION 1.0)
 
@@ -33,12 +33,36 @@ target_include_directories(aipg
   $<BUILD_INTERFACE:${INJA_INCLUDE_DIR}>
   $<INSTALL_INTERFACE:include>  # <prefix>/include
 )
-message(${TEMPLATES_DIR})
-message(${AIPG_INCLUDE_FILE})
 target_link_libraries(aipg PRIVATE ppcdisasm)
 target_compile_definitions(aipg 
   PRIVATE -DTEMPLATES_DIR="${TEMPLATES_DIR}" -DCTX_INC_FILE="${AIPG_INCLUDE_FILE}"
 )
+
+file(GLOB IDIOM_FILES ${CMAKE_CURRENT_SOURCE_DIR}/test/idioms/*)
+set(IDIOM_PARSER_SRC_DIR ${CMAKE_CURRENT_BINARY_DIR}/src)
+set(IDIOM_PARSER_INC_DIR ${CMAKE_CURRENT_BINARY_DIR}/include)
+file(MAKE_DIRECTORY ${IDIOM_PARSER_SRC_DIR} ${IDIOM_PARSER_INC_DIR})
+
+foreach (IDIOM_FILE ${IDIOM_FILES})
+  get_filename_component(IDIOM_FILE_STEM ${IDIOM_FILE} NAME_WLE)
+  set(IDIOM_PARSER_SRCS {IDIOM_PARSER_SRCS} ${IDIOM_PARSER_SRC_DIR}/${IDIOM_FILE_STEM}.cpp)
+endforeach ()
+
+add_custom_command(
+  OUTPUT ${IDIOM_PARSER_SRCS}     # Treated as relative to CMAKE_CURRENT_BINARY_DIR
+  COMMAND aipg --src_out ${IDIOM_PARSER_SRC_DIR} --inc_out ${IDIOM_PARSER_INC_DIR} ${IDIOM_FILES}
+  DEPENDS aipg
+)
+
+add_executable(test test/test.cpp ${IDIOM_PARSER_SRCS})
+target_include_directories(test
+  PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>  # <prefix>/include
+  ${IDIOM_PARSER_INC_DIR}
+)
+target_link_libraries(test ppcdisasm)
+set_property(TARGET test PROPERTY CXX_STANDARD 20)
 
 install(TARGETS aipg DESTINATION bin)
 install(DIRECTORY include/ DESTINATION include/${PROJECT_NAME})
