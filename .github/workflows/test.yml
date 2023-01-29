@@ -13,11 +13,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Run unit tests
-      uses: HorstBaerbel/action-ctest@1.1
-      # These are optional (defaults displayed)
-      with:
-        sourcedir: '.'
-        builddir: 'build'
-        cmakeoptions: ' -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON '
-        ctestoptions: ''
+    - name: mkdir
+      run: mkdir build
+    - name: build
+      working-directory: build
+      run: |
+        cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON ..
+        make -j$(nproc)
+    - name: ctest
+      working-directory: build
+      run: ctest --output-on-failure

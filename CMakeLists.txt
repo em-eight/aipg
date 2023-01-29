@@ -12,6 +12,7 @@ FetchContent_Declare(
   GIT_TAG        1ee2f06eb077431161c4ddf4239558de765767c5
 )
 
+message(git-exec="${GIT_EXECUTABLE}")
 FetchContent_MakeAvailable(ppcdisasm)
 
 set (INJA_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/inja-3.3.0/single_include)
