@@ -38,6 +38,18 @@ target_compile_definitions(aipg
   PRIVATE -DTEMPLATES_DIR="${TEMPLATES_DIR}" -DCTX_INC_FILE="${AIPG_INCLUDE_FILE}"
 )
 
+if(BUILD_TESTING)
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+enable_testing()
+
 file(GLOB IDIOM_FILES ${CMAKE_CURRENT_SOURCE_DIR}/test/idioms/*)
 set(IDIOM_PARSER_SRC_DIR ${CMAKE_CURRENT_BINARY_DIR}/src)
 set(IDIOM_PARSER_INC_DIR ${CMAKE_CURRENT_BINARY_DIR}/include)
@@ -54,15 +66,19 @@ add_custom_command(
   DEPENDS aipg
 )
 
-add_executable(test test/test.cpp ${IDIOM_PARSER_SRCS})
-target_include_directories(test
+add_executable(parse_test test/parse_test.cpp ${IDIOM_PARSER_SRCS})
+target_include_directories(parse_test
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>  # <prefix>/include
   ${IDIOM_PARSER_INC_DIR}
 )
-target_link_libraries(test ppcdisasm)
-set_property(TARGET test PROPERTY CXX_STANDARD 20)
+target_link_libraries(parse_test ppcdisasm GTest::gtest_main)
+set_property(TARGET parse_test PROPERTY CXX_STANDARD 20)
+
+include(GoogleTest)
+gtest_discover_tests(parse_test)
+endif() # End of tests
 
 install(TARGETS aipg DESTINATION bin)
 install(DIRECTORY include/ DESTINATION include/${PROJECT_NAME})
