@@ -27,3 +27,11 @@ Labels are currently not supported. For now, the generated parsers only look at 
 
 ## Special lines
 Use `...` to match any number of any instruction (as few as possible)
+### Instruction constraints
+You can add constraints on the instructions consumed by `...`, by adding one or more of the following expressions after `...`:
+- `{xxx}` Specifies that the instructions may only read registers that are mentioned inside the brackets
+- `[xxx]` Specifies that the instructions may only write registers that are mentioned inside the square brackets
+- `^{xxx}` Specifies that the instructions must NOT read registers that are mentioned inside the brackets
+- `^{xxx}` Specifies that the instructions must NOT write registers that are mentioned inside the brackets
+
+where `xxx` is a comma separated list of float or general purpose registers, either variables or defined.
