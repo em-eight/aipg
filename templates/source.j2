@@ -1,12 +1,27 @@
 
 #include "opcode/ppc.h"
 #include "ppcdisasm/ppc-dis.hpp"
+#include "ppcdisasm/ppc-operands.h"
 
 #include "aipg/aipg.hpp"
 
 using namespace ppcdisasm;
 
 namespace aipg {
+bool isOperandWrite(uint32_t opindex) {
+  if (opindex == RT || opindex == RAS || opindex == RAL) return true;
+  return false;
+}
+
+bool isOperandRead(uint32_t opindex) {
+  const struct powerpc_operand *operand = powerpc_operands + opindex;
+  if ((operand->flags & PPC_OPERAND_GPR) != 0 ||
+      (operand->flags & PPC_OPERAND_GPR_0) != 0 ||
+      (operand->flags & PPC_OPERAND_FPR) != 0) {
+    return !isOperandWrite(opindex);
+  }
+  return false;
+}
 
 ## for definition in definitions
 {{ definition }}

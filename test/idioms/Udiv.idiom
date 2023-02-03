@@ -1,7 +1,7 @@
 lis      $GPR9,$IMM1
-...
+...^[$GPR9]
 addi     $GPR8,$GPR9,$IMM2
-...
+...^[$GPR8, r1]
 mulhw    $GPR3,$GPR8,$GPR1
 ...
-srawi    $GPR4,$GPR2,$IMM3
+srawi    $GPR4,$GPR3,$IMM3

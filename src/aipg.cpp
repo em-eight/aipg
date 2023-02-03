@@ -28,7 +28,6 @@
 #define WLD_GPR_PTRN "\\$GPR\\?"
 // defined GPR
 #define DEF_GPR_PTRN "r(\\d\\d?)"
-#define GPR_PTRN "(?:" VAR_GPR_PTRN "|" DEF_GPR_PTRN ")"
 
 // FPR variable
 #define VAR_FPR_PTRN "\\$FPR(\\d*)"
@@ -54,6 +53,11 @@
 #define VAR_LABEL_PTRN "$LAB(\\d*)"
 #endif
 
+// register specifiers
+#define READ_SPEC_LIST_PTRN "\\^?\\{([\\$\\w,\\s]+)\\}"
+#define WRITE_SPEC_LIST_PTRN "\\^?\\[([\\$\\w,\\s]+)\\]"
+
+const std::regex EMPTY_RE("\\s");
 const std::regex CONSUME_ASM_RE(CONSUME_ASM_PTRN);
 const std::regex MNEMONIC_RE(MNEMONIC_PTRN);
 const std::regex OPERAND_RE(OPERAND_PTRN);
@@ -66,6 +70,8 @@ const std::regex DEF_FPR_RE(DEF_FPR_PTRN);
 const std::regex VAR_IMM_RE(VAR_IMM_PTRN);
 const std::regex WLD_IMM_RE(WLD_IMM_PTRN);
 const std::regex DEF_IMM_RE(DEF_IMM_PTRN);
+const std::regex READ_SPEC_LIST_RE(READ_SPEC_LIST_PTRN);
+const std::regex WRITE_SPEC_LIST_RE(WRITE_SPEC_LIST_PTRN);
 
 inja::Environment injaEnv {TEMPLATES_DIR};
 const inja::Template sourceTemplate = injaEnv.parse_template("/source.j2");
@@ -110,13 +116,24 @@ std::tuple<std::string, std::string> generateParser(const std::string& idiom, co
 
   // flag for ... expression to generate runtime that repeatedly checks for pattern
   bool checkNextRepeated = false;
+  json ins_constraints;
+  auto clear_ins_constraints = [&ins_constraints]() {
+    ins_constraints["gprWriteConstraints"] = json::array();
+    ins_constraints["gprReadConstraints"] = json::array();
+    ins_constraints["fprWriteConstraints"] = json::array();
+    ins_constraints["fprReadConstraints"] = json::array();
+  };
+  clear_ins_constraints();
 
   while (std::getline(iss, line)) {
     lineNum++;
     if (std::all_of(line.begin(),line.end(),isspace)) continue; // ignore empty lines
 
     std::smatch mnemonic_match;
-    if (std::regex_search(line, mnemonic_match, MNEMONIC_RE)) {
+    std::smatch dummy_match;
+    std::string tmp; // hack because match does not work with temp strings
+    // mnemonic at the start of line ?
+    if (std::regex_search(line, mnemonic_match, MNEMONIC_RE) && mnemonic_match.prefix().str() == "") {
       // -------- Assembly line --------
       std::string mnemonic = mnemonic_match[0];
       struct powerpc_opcode* opcode = lookup_mnemonic(mnemonic);
@@ -298,6 +315,7 @@ std::tuple<std::string, std::string> generateParser(const std::string& idiom, co
       definitions.push_back(injaEnv.render(isInsMatchingTemplate, ins_data));
 
       if (checkNextRepeated) {
+        ins_data["ins_constraints"] = ins_constraints;
         ins_data["parseCheck"] = injaEnv.render(insCheckLoopTemplate, ins_data);
       } else {
         ins_data["parseCheck"] = injaEnv.render(insCheckSingleTemplate, ins_data);
@@ -305,9 +323,64 @@ std::tuple<std::string, std::string> generateParser(const std::string& idiom, co
       source_data["ins_data"].push_back(ins_data);
 
       checkNextRepeated = false;
+      clear_ins_constraints();
     } else if (std::regex_search(line, mnemonic_match, CONSUME_ASM_RE)) {
       // -------- Consume any asm line --------
       checkNextRepeated = true;
+      
+      std::string restOfLine = mnemonic_match.suffix();
+      // record operand constraints
+      std::smatch constraints_match;
+      std::string constraints_string;
+      while (std::regex_search(restOfLine, constraints_match, READ_SPEC_LIST_RE) || std::regex_search(restOfLine, constraints_match, WRITE_SPEC_LIST_RE)) {
+        constraints_string = constraints_match[0];
+        bool isNegative = constraints_string[0] == '^';
+        bool isRead = constraints_string.find('{') != std::string::npos;
+        restOfLine = constraints_match.suffix();
+
+        std::smatch constraint_match;
+        while (std::regex_search(constraints_string, constraint_match, OPERAND_RE)) {
+          std::string constraint_string = constraint_match[0];
+          constraints_string = constraint_match.suffix();
+          json constraint;
+          constraint["isNotAllowed"] = isNegative;
+          constraint["isRead"] = isRead;
+          if (std::regex_match(constraint_string, constraint_match, VAR_GPR_RE)) {
+            constraint["val"] = std::stoi(constraint_match[1]);
+            constraint["isVariable"] = true;
+            constraint["type"] = "gpr";
+          } else if (std::regex_match(constraint_string, constraint_match, DEF_GPR_RE)) {
+            constraint["val"] = std::stoi(constraint_match[1]);
+            constraint["isVariable"] = false;
+            constraint["type"] = "gpr";
+          } else if (std::regex_match(constraint_string, constraint_match, VAR_FPR_RE)) {
+            constraint["val"] = std::stoi(constraint_match[1]);
+            constraint["isVariable"] = true;
+            constraint["type"] = "fpr";
+          } else if (std::regex_match(constraint_string, constraint_match, DEF_FPR_RE)) {
+            constraint["val"] = std::stoi(constraint_match[1]);
+            constraint["isVariable"] = false;
+            constraint["type"] = "fpr";
+          } else {
+            std::cerr << "Expected constraint definition at line " << lineNum << " got " << constraint_string << " instead" << std::endl;
+            exit(-1);
+          }
+
+          if (isRead) {
+            if (constraint["type"] == "gpr")
+              ins_constraints["gprReadConstraints"].push_back(constraint);
+            else if (constraint["type"] == "fpr") {
+              ins_constraints["fprReadConstraints"].push_back(constraint);
+            }
+          } else {
+            if (constraint["type"] == "gpr")
+              ins_constraints["gprWriteConstraints"].push_back(constraint);
+            else if (constraint["type"] == "fpr") {
+              ins_constraints["fprWriteConstraints"].push_back(constraint);
+            }
+          }
+        }
+      }
     }
   }
 

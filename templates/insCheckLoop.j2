@@ -1,6 +1,52 @@
   while (true) {
     if (insIdx >= maxInsCount) return false;
-    if (isInsnMatchingL{{ lineNo }}(opcode, buff[insIdx], dialect, parseCtx)) break;
+    uint32_t insn = buff[insIdx];
+    if (isInsnMatchingL{{ lineNo }}(opcode, insn, dialect, parseCtx)) break;
+
+    disassemble_init_powerpc();
+    const struct powerpc_opcode* insOpcode = lookup_powerpc (insn, dialect);
+    for (const ppc_opindex_t *opindex = insOpcode->operands; *opindex != 0; opindex++) {
+      const struct powerpc_operand *operand = powerpc_operands + *opindex;
+      int64_t opValue = operand_value_powerpc(operand, insn, dialect);
+      {% if length(ins_constraints.gprWriteConstraints)+length(ins_constraints.gprReadConstraints) > 0 %}
+      // check for GPR ins_constraints
+      if ((operand->flags & PPC_OPERAND_GPR) != 0 ||
+             (operand->flags & PPC_OPERAND_GPR_0) != 0) {
+        if (opValue == 0 && (operand->flags & PPC_OPERAND_GPR_0) != 0) continue; // this operand type uses immediate 0 if value is 0, not r0
+        {% if length(ins_constraints.gprWriteConstraints) > 0 %}
+        if (isOperandWrite(*opindex)) {
+          if ({% for gpr in ins_constraints.gprWriteConstraints%}opValue {% if gpr.isNotAllowed %}=={% else %}!={% endif %} {% if gpr.isVariable%}parseCtx.gprs[{{ gpr.val }}]{% else %}{{ gpr.val }}{% endif %} {% if not loop.is_last %}||{% endif %}{% endfor %})
+            return false;
+        }
+        {% endif %}
+        {% if length(ins_constraints.gprReadConstraints) > 0 %}
+        if (isOperandRead(*opindex)) {
+          if ({% for gpr in ins_constraints.gprReadConstraints%}opValue {% if gpr.isNotAllowed %}=={% else %}!={% endif %} {% if gpr.isVariable%}parseCtx.gprs[{{ gpr.val }}]{% else %}{{ gpr.val }}{% endif %} {% if not loop.is_last %}||{% endif %}{% endfor %})
+            return false;
+        }
+        {% endif %}
+      }
+      {% endif %}
+      {% if length(ins_constraints.fprWriteConstraints)+length(ins_constraints.fprReadConstraints) > 0 %}
+      // check for FPR ins_constraints
+      if ((operand->flags & PPC_OPERAND_FPR) != 0) {
+        {% if length(ins_constraints.fprWriteConstraints) > 0 %}
+        if (isOperandWrite(*opindex)) {
+          if ({% for fpr in ins_constraints.fprWriteConstraints%}opValue {% if fpr.isNotAllowed %}=={% else %}!={% endif %} {% if fpr.isVariable%}parseCtx.fprs[{{ fpr.val }}]{% else %}{{ fpr.val }}{% endif %} {% if not loop.is_last %}||{% endif %}{% endfor %})
+            return false;
+        }
+        {% endif %}
+        {% if length(ins_constraints.fprReadConstraints) > 0 %}
+        if (isOperandRead(*opindex)) {
+          if ({% for fpr in ins_constraints.fprReadConstraints%}opValue {% if fpr.isNotAllowed %}=={% else %}!={% endif %} {% if fpr.isVariable%}parseCtx.fprs[{{ fpr.val }}]{% else %}{{ fpr.val }}{% endif %} {% if not loop.is_last %}||{% endif %}{% endfor %})
+            return false;
+        }
+        {% endif %}
+      }
+      {% endif %}
+    }
+
     insIdx++;
   }
   parseCtx.matchInsIdxs.push_back(insIdx);
+  insIdx++;

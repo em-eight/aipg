@@ -8,6 +8,19 @@
 #include "aipg/aipg.hpp"
 #include "Udiv.hpp"
 
+/*
+original ASM:
+lis     r3, 0x8889
+lwz     r8, 0x14(r28)
+addi    r0, r3, -0x7777
+li      r3, 0
+mulhw   r0, r0, r7
+li      r3, 1
+add     r0, r0, r7
+srawi   r0, r0, 5
+srwi    r5, r0, 0x1f
+add     r6, r0, r5
+*/
 TEST(IdiomTest, Udiv) {
   uint32_t ins[] = {0x3c608889, 0x811c0014, 0x38038889, 0x38800000, 0x7c003896, 0x38600001, 0x7c003a14, 0x7c002e70, 0x54050ffe, 0x7cc02a14};
   aipg::Context parseCtx;
@@ -31,4 +44,13 @@ TEST(IdiomTest, Udiv) {
   EXPECT_EQ(parseCtx.imms[1], -30583);
   EXPECT_EQ(parseCtx.imms[2], -30583);
   EXPECT_EQ(parseCtx.imms[3], 5);
+}
+
+// same test as above with a li   r3, 0x18 as the second instruction to fail the register overwrite instruction constraint
+TEST(IdiomTestWriteConstraintNegative, Udiv) {
+  uint32_t ins[] = {0x3c608889, 0x38600018, 0x811c0014, 0x38038889, 0x38800000, 0x7c003896, 0x38600001, 0x7c003a14, 0x7c002e70, 0x54050ffe, 0x7cc02a14};
+  aipg::Context parseCtx;
+  bool match = aipg::matchUdiv(ins, sizeof(ins)/sizeof(uint32_t), PPC_OPCODE_PPC, parseCtx);
+  
+  EXPECT_FALSE(match);
 }
