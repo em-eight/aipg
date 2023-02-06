@@ -1,5 +1,8 @@
+/*
+This is an idiom that matches unsigned integer division
+*/
 lis      $GPR9,$IMM1
-...^[$GPR9]
+...^[$GPR9] // Consume any instruction that does not write $GPR9
 addi     $GPR8,$GPR9,$IMM2
 ...^[$GPR8, r1]
 mulhw    $GPR3,$GPR8,$GPR1

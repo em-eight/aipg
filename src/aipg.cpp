@@ -125,8 +125,27 @@ std::tuple<std::string, std::string> generateParser(const std::string& idiom, co
   };
   clear_ins_constraints();
 
+  bool isInMultiLineComment = false;
   while (std::getline(iss, line)) {
     lineNum++;
+    // ignore inline comment
+    int commentIdx = line.find("//");
+    if (commentIdx != std::string::npos) {
+      line.resize(commentIdx);
+    }
+    // ignore multiline comment
+    int multiCommentIdx = line.find("/*");
+    if (multiCommentIdx != std::string::npos) {
+      line.resize(multiCommentIdx);
+      isInMultiLineComment = true;
+    }
+    if (isInMultiLineComment) {
+      int multiCommentEndIdx = line.find("*/");
+      if (multiCommentEndIdx != std::string::npos) {
+        line = line.substr(multiCommentEndIdx);
+        isInMultiLineComment = false;
+      } else continue;
+    }
     if (std::all_of(line.begin(),line.end(),isspace)) continue; // ignore empty lines
 
     std::smatch mnemonic_match;

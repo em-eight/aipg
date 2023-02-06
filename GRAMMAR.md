@@ -35,3 +35,8 @@ You can add constraints on the instructions consumed by `...`, by adding one or 
 - `^{xxx}` Specifies that the instructions must NOT write registers that are mentioned inside the brackets
 
 where `xxx` is a comma separated list of float or general purpose registers, either variables or defined.
+
+## Comments
+The idiom grammar supports C-style inline and multiline comments
+- `// This a comment`
+- `/* This is another comment */`
