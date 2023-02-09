@@ -12,7 +12,6 @@ FetchContent_Declare(
   GIT_TAG        1ee2f06eb077431161c4ddf4239558de765767c5
 )
 
-message(git-exec="${GIT_EXECUTABLE}")
 FetchContent_MakeAvailable(ppcdisasm)
 
 set (INJA_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/inja-3.3.0/single_include)
@@ -52,29 +51,29 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 file(GLOB IDIOM_FILES ${CMAKE_CURRENT_SOURCE_DIR}/test/idioms/*)
-set(IDIOM_PARSER_SRC_DIR ${CMAKE_CURRENT_BINARY_DIR}/src)
-set(IDIOM_PARSER_INC_DIR ${CMAKE_CURRENT_BINARY_DIR}/include)
-file(MAKE_DIRECTORY ${IDIOM_PARSER_SRC_DIR} ${IDIOM_PARSER_INC_DIR})
+set(IDIOM_PARSER_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/include)
+file(MAKE_DIRECTORY ${IDIOM_PARSER_OUT_DIR})
 
 foreach (IDIOM_FILE ${IDIOM_FILES})
   get_filename_component(IDIOM_FILE_STEM ${IDIOM_FILE} NAME_WLE)
-  set(IDIOM_PARSER_SRCS {IDIOM_PARSER_SRCS} ${IDIOM_PARSER_SRC_DIR}/${IDIOM_FILE_STEM}.cpp)
+  set(IDIOM_PARSER_FILES {IDIOM_PARSER_FILES} ${IDIOM_PARSER_OUT_DIR}/${IDIOM_FILE_STEM}.cpp ${IDIOM_PARSER_OUT_DIR}/${IDIOM_FILE_STEM}.hpp)
 endforeach ()
 
-add_custom_command(
-  OUTPUT ${IDIOM_PARSER_SRCS}     # Treated as relative to CMAKE_CURRENT_BINARY_DIR
-  COMMAND aipg --src_out ${IDIOM_PARSER_SRC_DIR} --inc_out ${IDIOM_PARSER_INC_DIR} ${IDIOM_FILES}
+add_custom_target(gen_parsers
+#  OUTPUT ${IDIOM_PARSER_FILES}     # Treated as relative to CMAKE_CURRENT_BINARY_DIR
+  COMMAND aipg --out ${IDIOM_PARSER_OUT_DIR} ${IDIOM_FILES}
   DEPENDS aipg
 )
 
-add_executable(parse_test test/parse_test.cpp ${IDIOM_PARSER_SRCS})
+add_executable(parse_test test/parse_test.cpp)
 target_include_directories(parse_test
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>  # <prefix>/include
-  ${IDIOM_PARSER_INC_DIR}
+  ${IDIOM_PARSER_OUT_DIR}
 )
 target_link_libraries(parse_test ppcdisasm GTest::gtest_main)
+add_dependencies(parse_test gen_parsers)
 set_property(TARGET parse_test PROPERTY CXX_STANDARD 20)
 
 include(GoogleTest)

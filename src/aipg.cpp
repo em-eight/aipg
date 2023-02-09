@@ -417,30 +417,22 @@ std::tuple<std::string, std::string> generateParser(const std::string& idiom, co
 using namespace aipg;
 
 int main(int argc, char** argv) {
-  char* src_out = (char*) "./";
-  char* inc_out = (char*) "./";
+  char* out = (char*) "./";
   std::vector<std::string> idiom_paths;
 
   // parse args
+  std::string usage_string = "Usage: aipg [--out out] file1.idiom file2.idiom ...";
   for (int i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "--src_out") == 0) {
+    if (strcmp(argv[i], "--out") == 0) {
       i++;
       if (i < argc) {
-        src_out = argv[i];
+        out = argv[i];
       } else {
-        std::cerr << "Expected path after --src_out" << std::endl;
-        exit(-1);
-      }
-    } else if (strcmp(argv[i], "--inc_out") == 0) {
-      i++;
-      if (i < argc) {
-        inc_out = argv[i];
-      } else {
-        std::cerr << "Expected path after --inc_out" << std::endl;
+        std::cerr << "Expected path after --out" << std::endl;
         exit(-1);
       }
     } else if (strcmp(argv[i], "--help") == 0) {
-      std::cout << "Usage: aipg [--src_out src_out] [--inc_out inc_out] file1.idiom file2.idiom ..." << std::endl;
+      std::cout << usage_string << std::endl;
       exit(0);
     }else {
       idiom_paths.push_back(argv[i]);
@@ -448,15 +440,15 @@ int main(int argc, char** argv) {
   }
 
   if (idiom_paths.empty()) {
-    std::cout << "Usage: aipg [--src_out src_out] [--inc_out inc_out] file1.idiom file2.idiom ..." << std::endl;
+    std::cout << usage_string << std::endl;
     exit(0);
   }
     
-  if (!std::filesystem::exists(inc_out))
-    std::filesystem::copy(CTX_INC_FILE, inc_out);
+  if (!std::filesystem::exists(out))
+    std::filesystem::copy(CTX_INC_FILE, out);
 
-  std::filesystem::path inc_path(inc_out);
-  std::filesystem::path src_path(src_out);
+  std::filesystem::path inc_path(out);
+  std::filesystem::path src_path(out);
   for (const auto& idiom_path : idiom_paths) {
     std::ifstream idiom_file(idiom_path);
     if (idiom_file.is_open()) {

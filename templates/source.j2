@@ -27,14 +27,19 @@ bool isOperandRead(uint32_t opindex) {
 {{ definition }}
 ## endfor
 
-bool match{{ idiom_name }}(uint32_t* buff, uint32_t maxInsCount, ppc_cpu_t dialect, Context& parseCtx) {
+template< class ForwardIt >
+bool match{{ idiom_name }}(ForwardIt first, ForwardIt last, ppc_cpu_t dialect, Context& parseCtx) {
+  ForwardIt iter = first;
   uint32_t insIdx = 0;
   const struct powerpc_opcode* opcode;
 
 ## for ins in ins_data
-  if (insIdx >= maxInsCount) return false;
+  if (iter == last) return false;
   opcode = powerpc_opcodes + {{ ins.opindex }};
   {{ ins.parseCheck }}
+  parseCtx.matchInsIdxs.push_back(insIdx);
+  iter++;
+  insIdx++;
 ## endfor
 
   return true;

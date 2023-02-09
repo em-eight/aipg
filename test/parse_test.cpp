@@ -24,7 +24,7 @@ add     r6, r0, r5
 TEST(IdiomTest, Udiv) {
   uint32_t ins[] = {0x3c608889, 0x811c0014, 0x38038889, 0x38800000, 0x7c003896, 0x38600001, 0x7c003a14, 0x7c002e70, 0x54050ffe, 0x7cc02a14};
   aipg::Context parseCtx;
-  bool match = aipg::matchUdiv(ins, sizeof(ins)/sizeof(uint32_t), PPC_OPCODE_PPC, parseCtx);
+  bool match = aipg::matchUdiv(std::begin(ins), std::end(ins), PPC_OPCODE_PPC, parseCtx);
 
   ASSERT_TRUE(match);
 
@@ -50,7 +50,7 @@ TEST(IdiomTest, Udiv) {
 TEST(IdiomTestWriteConstraintNegative, Udiv) {
   uint32_t ins[] = {0x3c608889, 0x38600018, 0x811c0014, 0x38038889, 0x38800000, 0x7c003896, 0x38600001, 0x7c003a14, 0x7c002e70, 0x54050ffe, 0x7cc02a14};
   aipg::Context parseCtx;
-  bool match = aipg::matchUdiv(ins, sizeof(ins)/sizeof(uint32_t), PPC_OPCODE_PPC, parseCtx);
+  bool match = aipg::matchUdiv(std::begin(ins), std::end(ins), PPC_OPCODE_PPC, parseCtx);
   
   EXPECT_FALSE(match);
 }

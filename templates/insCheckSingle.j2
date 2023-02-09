@@ -1,5 +1,4 @@
-  if (!isInsnMatchingL{{ lineNo }}(opcode, buff[insIdx], dialect, parseCtx)) {
+  uint32_t ins = *iter;
+  if (!isInsnMatchingL{{ lineNo }}(opcode, ins, dialect, parseCtx)) {
     return false;
   }
-  parseCtx.matchInsIdxs.push_back(insIdx);
-  insIdx++;

@@ -23,7 +23,7 @@ You can invoke aipg to create a C++ parser for it
 ```
 ./aipg Udiv.idiom
 ```
-which will generate `Udiv.cpp` and `Udiv.hpp` for you. You can now use those files to parse your binary, for example:
+which will generate `Udiv.hpp` for you. You can now include that file and use it to parse your binary, for example:
 ```cpp
 #include <iostream>
 #include "opcode/ppc.h"
@@ -46,7 +46,7 @@ add     r6, r0, r5
 */
   uint32_t ins[] = {0x3c608889, 0x811c0014, 0x38038889, 0x38800000, 0x7c003896, 0x38600001, 0x7c003a14, 0x7c002e70, 0x54050ffe, 0x7cc02a14};
   aipg::Context parseCtx;
-  bool match = aipg::matchUdiv(ins, sizeof(ins)/sizeof(uint32_t), PPC_OPCODE_PPC, parseCtx);
+  bool match = aipg::matchUdiv(std::begin(ins), std::end(ins), PPC_OPCODE_PPC, parseCtx);
   std::cout << (match ? "Found match" : "No match found") << std::endl;
   for (uint32_t idx : parseCtx.matchInsIdxs)
     std::cout << "Matcing ins idx: " << idx << std::endl;
@@ -87,7 +87,7 @@ The generator requires a compiler with c++17 support and the runtime parser c++2
 
 ## Usage
 ### Command line
-`./aipg aipg [--src_out src_out] [--inc_out inc_out] file1.idiom file2.idiom ..`
+`./aipg aipg [--out output_parser_location file1.idiom file2.idiom ..`
 
 ### In build system
 When using this project's parsers in your own project, usually you will want to perform the parser generation at build time, before your targets that use them are built. You can find an example of doing this with CMake in this project's [CMakeLists.txt](https://github.com/em-eight/aipg/blob/main/CMakeLists.txt)

@@ -1,6 +1,6 @@
   while (true) {
-    if (insIdx >= maxInsCount) return false;
-    uint32_t insn = buff[insIdx];
+    if (iter == last) return false;
+    uint32_t insn = *iter;
     if (isInsnMatchingL{{ lineNo }}(opcode, insn, dialect, parseCtx)) break;
 
     disassemble_init_powerpc();
@@ -46,7 +46,6 @@
       {% endif %}
     }
 
+    iter++;
     insIdx++;
   }
-  parseCtx.matchInsIdxs.push_back(insIdx);
-  insIdx++;

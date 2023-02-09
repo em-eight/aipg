@@ -6,5 +6,10 @@
 #include "aipg/aipg.hpp"
 
 namespace aipg {
-bool match{{ idiom_name }}(uint32_t* buffer, uint32_t maxInsCount, ppc_cpu_t dialect, Context& parseCtx);
+// ForwardIt satisfies LegacyForwardIterator https://en.cppreference.com/w/cpp/named_req/ForwardIterator
+template< class ForwardIt >
+bool match{{ idiom_name }}(ForwardIt first, ForwardIt last, ppc_cpu_t dialect, Context& parseCtx);
 }
+
+// template definition
+#include "{{ idiom_name }}.cpp"
