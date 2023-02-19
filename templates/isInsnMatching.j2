@@ -1,9 +1,14 @@
-bool isInsnMatchingL{{ lineNo }}(const struct powerpc_opcode* opcode, uint64_t insn, ppc_cpu_t dialect, Context& parseCtx) {
-  bool isMatching = isMnemonicMatching(opcode, insn, dialect);
+bool isInsnMatchingL{{ lineNo }}{{ idiom_name }}(const struct powerpc_opcode* opcode, uint64_t insn, ppc_cpu_t dialect, Context& parseCtx, uint32_t vma, SymbolGetter symbolGetter) {
+  bool isMatching = isMnemonicMatching{{ idiom_name }}(opcode, insn, dialect);
 
   Context tmpCtx = parseCtx;
 ## for operand in operands
-  isMatching = isMatching && isOperand{{ operand.idx }}MatchingL{{ lineNo }}(powerpc_operands + {{ operand.idx }}, insn, dialect, tmpCtx);
+  {% if not operand.isSkippedOptional %}
+  {% if existsIn(operand, "lab") %}isMatching = isMatching && isOperand{{ operand.idx }}MatchingL{{ lineNo }}{{ idiom_name }}(vma, symbolGetter, tmpCtx);
+  {% else %}isMatching = isMatching && isOperand{{ operand.idx }}MatchingL{{ lineNo }}{{ idiom_name }}(powerpc_operands + {{ operand.idx }}, insn, dialect, tmpCtx);{% endif %}
+  {% else %}
+  isMatching = isMatching && hasOperandOptionalValue{{ operand.idx }}MatchingL{{ lineNo }}{{ idiom_name }}(powerpc_operands + {{ operand.idx }}, insn, dialect);
+  {% endif %}
 ## endfor
   if (isMatching) parseCtx = tmpCtx;
   return isMatching;

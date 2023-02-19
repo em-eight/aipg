@@ -1,0 +1,5 @@
+bool isOperand{{ operand.idx }}MatchingL{{ lineNo }}{{ idiom_name }}(uint32_t vma, SymbolGetter symbolGetter, Context& parseCtx) {
+  RelocationTarget relocTarget = symbolGetter(vma);
+
+  return relocTarget.name == parseCtx.labs[{{ operand.lab }}]{% if existsIn(operand, "relocKind") %} && relocTarget.kind == {{ operand.relocKind }}{% endif %};
+}

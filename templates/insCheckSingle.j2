@@ -1,4 +1,3 @@
-  uint32_t ins = *iter;
-  if (!isInsnMatchingL{{ lineNo }}(opcode, ins, dialect, parseCtx)) {
+  if (!isInsnMatchingL{{ lineNo }}{{ idiom_name }}(opcode, *iter, dialect, parseCtx, memaddr+4*insIdx, symbolGetter)) {
     return false;
   }

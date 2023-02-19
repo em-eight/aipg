@@ -2,13 +2,14 @@
 #pragma once
 
 #include "opcode/ppc.h"
+#include "ppcdisasm/ppc-dis.hpp"
 
 #include "aipg/aipg.hpp"
 
 namespace aipg {
 // ForwardIt satisfies LegacyForwardIterator https://en.cppreference.com/w/cpp/named_req/ForwardIterator
 template< class ForwardIt >
-bool match{{ idiom_name }}(ForwardIt first, ForwardIt last, ppc_cpu_t dialect, Context& parseCtx);
+bool match{{ idiom_name }}(ForwardIt first, ForwardIt last, ppc_cpu_t dialect, Context& parseCtx, uint32_t memaddr=0x0, ppcdisasm::SymbolGetter symbolGetter=ppcdisasm::defaultSymbolGetter);
 }
 
 // template definition

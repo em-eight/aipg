@@ -8,17 +8,18 @@
 using namespace ppcdisasm;
 
 namespace aipg {
-bool isOperandWrite(uint32_t opindex) {
+namespace {
+static bool isOperandWrite{{ idiom_name }}(uint32_t opindex) {
   if (opindex == RT || opindex == RAS || opindex == RAL) return true;
   return false;
 }
 
-bool isOperandRead(uint32_t opindex) {
+static bool isOperandRead{{ idiom_name }}(uint32_t opindex) {
   const struct powerpc_operand *operand = powerpc_operands + opindex;
   if ((operand->flags & PPC_OPERAND_GPR) != 0 ||
       (operand->flags & PPC_OPERAND_GPR_0) != 0 ||
       (operand->flags & PPC_OPERAND_FPR) != 0) {
-    return !isOperandWrite(opindex);
+    return !isOperandWrite{{ idiom_name }}(opindex);
   }
   return false;
 }
@@ -26,9 +27,10 @@ bool isOperandRead(uint32_t opindex) {
 ## for definition in definitions
 {{ definition }}
 ## endfor
+}
 
 template< class ForwardIt >
-bool match{{ idiom_name }}(ForwardIt first, ForwardIt last, ppc_cpu_t dialect, Context& parseCtx) {
+bool match{{ idiom_name }}(ForwardIt first, ForwardIt last, ppc_cpu_t dialect, Context& parseCtx, uint32_t memaddr, SymbolGetter symbolGetter) {
   ForwardIt iter = first;
   uint32_t insIdx = 0;
   const struct powerpc_opcode* opcode;

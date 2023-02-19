@@ -4,9 +4,11 @@
 #include <gtest/gtest.h>
 
 #include "opcode/ppc.h"
+#include "ppcdisasm/ppc-relocations.h"
 
 #include "aipg/aipg.hpp"
 #include "Udiv.hpp"
+#include "LabelTest.hpp"
 
 /*
 original ASM:
@@ -53,4 +55,73 @@ TEST(IdiomTestWriteConstraintNegative, Udiv) {
   bool match = aipg::matchUdiv(std::begin(ins), std::end(ins), PPC_OPCODE_PPC, parseCtx);
   
   EXPECT_FALSE(match);
+}
+
+/*
+Test with relocations and labels
+
+ 805103F0 4182005C  beq-        lbl_8051044c
+ 805103F4 3CA0808B  lis         r5, lbl_808b2c10@ha
+ 805103F8 3C80809C  lis         r4, lbl_809bd6e0@ha
+ 805103FC 38A52C10  addi        r5, r5, lbl_808b2c10@l
+ 80510400 90A30000  stw         r5, 0(r3)
+ 80510404 8064D6E0  lwz         r3, lbl_809bd6e0@l(r4)
+*/
+TEST(LabelTestPositive, LatelTest) {
+  uint32_t start_vma = 0x805103f0;
+  uint32_t ins[] = {0x4182005c, 0x3ca0808b, 0x3c80809c, 0x38a52c10, 0x90A30000, 0x8064d6e0};
+  SymbolGetter symGetter = [](uint32_t address) -> RelocationTarget {
+    if (address == 0x805103f0) {
+      return {R_PPC_ADDR14, "lbl_8051044c"};
+    } else if (address == 0x805103f4) {
+      return {R_PPC_ADDR16_HA, "lbl_808b2c10"};
+    } else if (address == 0x805103f8) {
+      return {R_PPC_ADDR16_HA, "lbl_809bd6e0"};
+    } else if (address == 0x805103fc) {
+      return {R_PPC_ADDR16_LO, "lbl_808b2c10"};
+    } else if (address == 0x80510404) {
+      return {R_PPC_ADDR16_LO, "lbl_809bd6e0"};
+    } else {
+      return RELOC_TARGET_NONE;
+    }
+  };
+  aipg::Context parseCtx;
+  bool match = aipg::matchLabelTest(std::begin(ins), std::end(ins), PPC_OPCODE_PPC, parseCtx, start_vma, symGetter);
+
+  ASSERT_TRUE(match);
+
+  ASSERT_EQ(parseCtx.matchInsIdxs.size(), 3);
+  EXPECT_EQ(parseCtx.matchInsIdxs[0], 0);
+  EXPECT_EQ(parseCtx.matchInsIdxs[1], 1);
+  EXPECT_EQ(parseCtx.matchInsIdxs[2], 3);
+
+  EXPECT_EQ(parseCtx.gprs[1], 5);
+  EXPECT_EQ(parseCtx.gprs[2], 5);
+
+  EXPECT_STREQ(parseCtx.labs[1].c_str(), "lbl_8051044c");
+  EXPECT_STREQ(parseCtx.labs[2].c_str(), "lbl_808b2c10");
+}
+
+TEST(LabelTestNegative, LatelTest) {
+  uint32_t start_vma = 0x805103f0;
+  uint32_t ins[] = {0x4182005c, 0x3ca0808b, 0x3c80809c, 0x38a52c10, 0x90A30000, 0x8064d6e0};
+  SymbolGetter symGetter = [](uint32_t address) -> RelocationTarget {
+    if (address == 0x805103f0) {
+      return {R_PPC_ADDR14, "lbl_8051044c"};
+    } else if (address == 0x805103f4) {
+      return {R_PPC_ADDR16_LO, "lbl_808b2c10"};
+    } else if (address == 0x805103f8) {
+      return {R_PPC_ADDR16_HA, "lbl_809bd6e0"};
+    } else if (address == 0x805103fc) {
+      return {R_PPC_ADDR16_LO, "lbl_808b2c10"};
+    } else if (address == 0x80510404) {
+      return {R_PPC_ADDR16_LO, "lbl_809bd6e0"};
+    } else {
+      return RELOC_TARGET_NONE;
+    }
+  };
+  aipg::Context parseCtx;
+  bool match = aipg::matchLabelTest(std::begin(ins), std::end(ins), PPC_OPCODE_PPC, parseCtx, start_vma, symGetter);
+
+  ASSERT_FALSE(match);
 }

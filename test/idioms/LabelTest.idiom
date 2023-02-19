@@ -1,0 +1,5 @@
+
+beq-        $LAB1
+lis         $GPR1, $LAB2@ha
+...
+addi        $GPR2, $GPR1, $LAB2@l

@@ -1,0 +1,5 @@
+bool hasOperandOptionalValue{{ operand.idx }}MatchingL{{ lineNo }}{{ idiom_name }}(const struct powerpc_operand* operand, uint64_t insn, ppc_cpu_t dialect) {
+  int64_t operand_val = operand_value_powerpc(operand, insn, dialect);
+  int64_t optional_operand_val = ppc_optional_operand_value(operand, insn, dialect, {{ operand.num_optional }});
+  return operand_val == optional_operand_val;
+}

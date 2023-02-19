@@ -9,7 +9,7 @@ include(FetchContent)
 FetchContent_Declare(
   ppcdisasm
   GIT_REPOSITORY https://github.com/em-eight/ppcdisasm-cpp.git
-  GIT_TAG        1ee2f06eb077431161c4ddf4239558de765767c5
+  GIT_TAG        457dacd
 )
 
 FetchContent_MakeAvailable(ppcdisasm)

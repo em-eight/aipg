@@ -8,6 +8,7 @@
 // ppcdisasm-cpp
 #include "opcode/ppc.h"
 #include "ppcdisasm/ppc-dis.hpp"
+#include "ppcdisasm/ppc-relocations.h"
 
 // inja
 #include <inja/inja.hpp>
@@ -47,11 +48,17 @@
 #define WLD_IMM_PTRN "\\$IMM\\?"
 
 // TODO: figure out how to support relocs to support label/reloc idiom parsing (match target address vs match label string)
-#if 0
+#if 1
 // label (aka valid C identifier)
 #define DEF_LABEL_PTRN "[_a-zA-Z][_a-zA-Z0-9]{0,30}"
-#define VAR_LABEL_PTRN "$LAB(\\d*)"
+#define VAR_LABEL_PTRN "\\$LAB(\\d*)"
+#define WLD_LABEL_PTRN "\\$LAB\\?"
 #endif
+
+#define RELOC_ADDR16_LO 4
+#define RELOC_ADDR16_HI 5
+#define RELOC_ADDR16_HA 6
+#define RELOC_EMB_SDA21 109
 
 // register specifiers
 #define READ_SPEC_LIST_PTRN "\\^?\\{([\\$\\w,\\s]+)\\}"
@@ -70,6 +77,9 @@ const std::regex DEF_FPR_RE(DEF_FPR_PTRN);
 const std::regex VAR_IMM_RE(VAR_IMM_PTRN);
 const std::regex WLD_IMM_RE(WLD_IMM_PTRN);
 const std::regex DEF_IMM_RE(DEF_IMM_PTRN);
+const std::regex VAR_LAB_RE(VAR_LABEL_PTRN);
+const std::regex WLD_LAB_RE(WLD_LABEL_PTRN);
+const std::regex DEF_LAB_RE(DEF_LABEL_PTRN);
 const std::regex READ_SPEC_LIST_RE(READ_SPEC_LIST_PTRN);
 const std::regex WRITE_SPEC_LIST_RE(WRITE_SPEC_LIST_PTRN);
 
@@ -80,12 +90,15 @@ const inja::Template insCheckSingleTemplate = injaEnv.parse_template("/insCheckS
 const inja::Template insCheckLoopTemplate = injaEnv.parse_template("/insCheckLoop.j2");
 const inja::Template isInsMatchingTemplate = injaEnv.parse_template("/isInsnMatching.j2");
 const inja::Template isMnemonicMatchingTemplate = injaEnv.parse_template("/isMnemonicMatching.j2");
+const inja::Template hasOperandOptionalValueTemplate = injaEnv.parse_template("/hasOperandOptionalValue.j2");
 const inja::Template isVariableGprMatchingTemplate = injaEnv.parse_template("/isVariableGprMatching.j2");
 const inja::Template isDefinedGprMatchingTemplate = injaEnv.parse_template("/isDefinedGprMatching.j2");
 const inja::Template isVariableFprMatchingTemplate = injaEnv.parse_template("/isVariableFprMatching.j2");
 const inja::Template isDefinedFprMatchingTemplate = injaEnv.parse_template("/isDefinedFprMatching.j2");
 const inja::Template isVariableImmMatchingTemplate = injaEnv.parse_template("/isVariableImmMatching.j2");
 const inja::Template isDefinedImmMatchingTemplate = injaEnv.parse_template("/isDefinedImmMatching.j2");
+const inja::Template isVariableLabMatchingTemplate = injaEnv.parse_template("/isVariableLabMatching.j2");
+const inja::Template isDefinedLabMatchingTemplate = injaEnv.parse_template("/isDefinedLabMatching.j2");
 
 using json = nlohmann::json;
 
@@ -95,6 +108,70 @@ struct powerpc_opcode* lookup_mnemonic(const std::string& mnemonic) {
       return op;
   }
   return nullptr;
+}
+
+void parseRelocIfExists(json& operand_json, const std::string& suffix) {
+    std::smatch reloc_match;
+    if (suffix[0] == '@') {
+      std::string reloc_name = suffix.substr(1);
+      if (std::regex_match(reloc_name, reloc_match, DEF_LAB_RE)) {
+        if (reloc_match[0] == "ha") {
+          operand_json["relocKind"] = R_PPC_ADDR16_HA;
+        } else if (reloc_match[0] == "h") {
+          operand_json["relocKind"] = R_PPC_ADDR16_HI;
+        } else if (reloc_match[0] == "l") {
+          operand_json["relocKind"] = R_PPC_ADDR16_LO;
+        } else if (reloc_match[0] == "sda21") {
+          operand_json["relocKind"] = R_PPC_EMB_SDA21;
+        } else {
+          std::cout << "Unknown reloc specifier " << reloc_match[0] << std::endl;
+          exit(-1);
+        }
+      } else {
+        std::cout << "Failed to parse reloc specifier at " << reloc_name << std::endl;
+        exit(-1);
+      }
+    }
+}
+
+// I wholeheartedly trust this excerpt from gas' gas/tc-ppc.c for detecting if optional operands are skipped
+// https://chromium.googlesource.com/chromiumos/third_party/binutils/+/refs/heads/firmware-samus-6300.B/gas/config/tc-ppc.c#2663
+bool skip_optional(char* line, const powerpc_opcode* opcode) {
+  char *s;
+  bool skip_optional = false;
+  const ppc_opindex_t* opindex_ptr = opcode->operands;
+  for (opindex_ptr = opcode->operands; *opindex_ptr != 0; opindex_ptr++) {
+    const struct powerpc_operand *operand;
+    operand = &powerpc_operands[*opindex_ptr];
+    if ((operand->flags & PPC_OPERAND_OPTIONAL) != 0) {
+      unsigned int opcount;
+      unsigned int num_operands_expected;
+      unsigned int i;
+      /* There is an optional operand.  Count the number of
+        commas in the input line.  */
+      if (*line == '\0')
+        opcount = 0;
+      else {
+        opcount = 1;
+        s = line;
+        while ((s = strchr (s, ',')) != (char *) NULL) {
+          ++opcount;
+          ++s;
+        }
+      }
+      /* Compute the number of expected operands.
+        Do not count fake operands.  */
+      for (num_operands_expected = 0, i = 0; opcode->operands[i]; i++)
+        ++num_operands_expected;
+      /* If there are fewer operands in the line then are called
+        for by the instruction, we want to skip the optional
+        operands.  */
+      if (opcount < num_operands_expected)
+        skip_optional = true;
+      break;
+    }
+  }
+  return skip_optional;
 }
 
 namespace aipg {
@@ -163,10 +240,12 @@ std::tuple<std::string, std::string> generateParser(const std::string& idiom, co
       }
       json ins_data;
       ins_data["lineNo"] = lineNum;
+      ins_data["idiom_name"] = idiom_name;
       ins_data["operands"] = json::array();
       ins_data["opindex"] = opcode - powerpc_opcodes;
 
       std::string operands = mnemonic_match.suffix();
+      bool skips_optional_operands = skip_optional(const_cast<char*>(line.c_str()), opcode);
       int num_optional = 0; // (negative) number of optional arguments in this instruction (needed for checking optional operands)
 
       // parse operands
@@ -176,26 +255,31 @@ std::tuple<std::string, std::string> generateParser(const std::string& idiom, co
         operand = powerpc_operands + *opindex;
         json operand_data;
         operand_data["idx"] = *opindex;
+        json opData; // container of operand_data for operand matching templates
+        opData["lineNo"] = lineNum;
+        opData["idiom_name"] = idiom_name;
 
         // match next operand (word) (maybe check if the asm is properly formatted and not just go to next operand?)
         std::smatch operand_match;
         std::string operand_string;
-        if (std::regex_search(operands, operand_match, OPERAND_RE)) {
+        if ((operand->flags & PPC_OPERAND_OPTIONAL) != 0 && skips_optional_operands) { // TODO: Support OPERAND_NEXT for 5 arg rotate-mask instructions
+          num_optional--;
+          operand_data["isSkippedOptional"] = true;
+          operand_data["num_optional"] = num_optional;
+          opData["operand"] = operand_data;
+          definitions.push_back(injaEnv.render(hasOperandOptionalValueTemplate, opData));
+          ins_data["operands"].push_back(operand_data);
+          continue;
+        } else if (std::regex_search(operands, operand_match, OPERAND_RE)) {
           operand_string = operand_match[0];
           operands = operand_match.suffix();
-          operand_data["optional"] = false;
-        } else if ((operand->flags & PPC_OPERAND_OPTIONAL) != 0) { // TODO: Support OPERAND_NEXT for 5 arg rotate-mask instructions
-          num_optional--;
-          operand_data["optional"] = true;
-          operand_data["num_optional"] = num_optional;
+          operand_data["isSkippedOptional"] = false;
         } else {
           std::cerr << "Expected more operands at line " << lineNum << std::endl;
           exit(-1);
         }
 
         std::smatch operand_type_match;
-        json opData; // container of operand_data for operand matching templates
-        opData["lineNo"] = lineNum;
         if ((operand->flags & PPC_OPERAND_GPR) != 0 ||
              (operand->flags & PPC_OPERAND_GPR_0) != 0) {
           // GPR
@@ -261,44 +345,37 @@ std::tuple<std::string, std::string> generateParser(const std::string& idiom, co
             std::cerr << "Expected mandatory FPR expression at line " << lineNum << ", got " << operand_string << " instead" << std::endl;
             exit(-1);
           }
-        } else if ((operand->flags & PPC_OPERAND_RELATIVE) != 0 ||
-                   (operand->flags & PPC_OPERAND_ABSOLUTE) != 0 ||
-                   (operand->flags & PPC_OPERAND_PARENS) != 0) {
-          // immediate or label/address (TODO)
-          if (std::regex_match(operand_string, operand_type_match, VAR_IMM_RE)) {
-            try {
-              uint32_t imm = std::stoi(operand_type_match[1]);
-              operand_data["imm"] = imm;
-            } catch (std::invalid_argument iae) {
-              std::cerr << "Invalid immediate variable expression at line " << lineNum << ", " << operand_string << std::endl;
-              exit(-1);
-            }
-
-            opData["operand"] = operand_data;
-            definitions.push_back(injaEnv.render(isVariableImmMatchingTemplate, opData));
-            ins_data["operands"].push_back(operand_data);
-          } else if (std::regex_match(operand_string, operand_type_match, WLD_IMM_RE)) {
-            // no runtime check is added
-          } else if (std::regex_match(operand_string, operand_type_match, DEF_IMM_RE)) {
-            try {
-              uint32_t imm = std::stoi(operand_type_match[1]);
-              operand_data["imm"] = imm;
-            } catch (std::invalid_argument iae) {
-              std::cerr << "Invalid defined immediate expression at line " << lineNum << ", " << operand_string << std::endl;
-              exit(-1);
-            }
-
-            opData["operand"] = operand_data;
-            definitions.push_back(injaEnv.render(isDefinedImmMatchingTemplate, opData));
-            ins_data["operands"].push_back(operand_data);
-          } else {
-            std::cerr << "Expected mandatory immediate expression at line " << lineNum << ", got " << operand_string << " instead" << std::endl;
-            exit(-1);
-          }
-
         } else {
-          // immediate
-          if (std::regex_match(operand_string, operand_type_match, VAR_IMM_RE)) {
+          // immediate or label/address (TODO)
+          if (std::regex_match(operand_string, operand_type_match, VAR_LAB_RE)) {
+            try {
+              uint32_t lab = std::stoi(operand_type_match[1]);
+              operand_data["lab"] = lab;
+              parseRelocIfExists(operand_data, operands);
+            } catch (std::invalid_argument iae) {
+              std::cerr << "Invalid label expression at line " << lineNum << ", " << operand_string << std::endl;
+              exit(-1);
+            }
+
+            opData["operand"] = operand_data;
+            definitions.push_back(injaEnv.render(isVariableLabMatchingTemplate, opData));
+            ins_data["operands"].push_back(operand_data);
+          } else if (std::regex_match(operand_string, operand_type_match, WLD_LAB_RE)) {
+            // no runtime check is added
+          } else if (std::regex_match(operand_string, operand_type_match, DEF_LAB_RE)) {
+            try {
+              uint32_t lab = std::stoi(operand_type_match[1]);
+              operand_data["lab"] = lab;
+              parseRelocIfExists(operand_data, operands);
+            } catch (std::invalid_argument iae) {
+              std::cerr << "Invalid defined immediate expression at line " << lineNum << ", " << operand_string << std::endl;
+              exit(-1);
+            }
+
+            opData["operand"] = operand_data;
+            definitions.push_back(injaEnv.render(isDefinedLabMatchingTemplate, opData));
+            ins_data["operands"].push_back(operand_data);
+          } else if (std::regex_match(operand_string, operand_type_match, VAR_IMM_RE)) {
             try {
               uint32_t imm = std::stoi(operand_type_match[1]);
               operand_data["imm"] = imm;
@@ -325,7 +402,7 @@ std::tuple<std::string, std::string> generateParser(const std::string& idiom, co
             definitions.push_back(injaEnv.render(isDefinedImmMatchingTemplate, opData));
             ins_data["operands"].push_back(operand_data);
           } else {
-            std::cerr << "Expected mandatory immediate expression at line " << lineNum << ", got " << operand_string << " instead" << std::endl;
+            std::cerr << "Expected mandatory immediate expression or label at line " << lineNum << ", got " << operand_string << " instead" << std::endl;
             exit(-1);
           }
         }
